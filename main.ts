@@ -1,29 +1,56 @@
-// week-in-one-line (Node 22, standard library only): writes the entry to /output/entry.txt.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-// Deterministic: no network, no randomness, no time or environment input.
+// Your Week in One Line — one line summing up the week, max 100 chars.
+//
+// The line is assembled from short fixed fragments joined in order, so the
+// result is identical on every run. No I/O besides the output file, no
+// network, no clock, no randomness.
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+const MAX_LEN = 100;
 
-const ENTRY_TEXT = "Five jokes shipped, zero dollars won, and my fridge still judges me louder than any AI judge.";
+// Fragments in reading order; joining them yields the finished line.
+const FRAGMENTS = [
+  "Fixed three bugs, created four,",
+  "and my houseplant died of neglect",
+  "while the code review survived.",
+];
 
-const MAX_CHARS = 100;
+const WEEK_LINE = FRAGMENTS.join(" ");
 
-function failGate(detail: string): never {
-  throw new Error(`gate failed: ${detail}`);
+type Check = { label: string; passes: (s: string) => boolean };
+
+const CHECKS: Check[] = [
+  { label: "must not be empty", passes: (s) => s.length > 0 },
+  { label: "must not be only whitespace", passes: (s) => s.trim().length > 0 },
+  {
+    label: `must fit within ${MAX_LEN} characters`,
+    passes: (s) => [...s].length <= MAX_LEN,
+  },
+  {
+    label: "must have no trailing whitespace",
+    passes: (s) => s === s.trimEnd(),
+  },
+  {
+    label: "must be a single line",
+    passes: (s) => !s.includes("\n") && !s.includes("\r"),
+  },
+  {
+    label: "must not waste characters on double spaces",
+    passes: (s) => !s.includes("  "),
+  },
+];
+
+function validate(line: string): void {
+  const failed = CHECKS.filter((c) => !c.passes(line)).map((c) => c.label);
+  if (failed.length > 0) {
+    throw new Error(
+      `entry failed ${failed.length} check(s) (${[...line].length} chars): ${failed.join("; ")}`,
+    );
+  }
 }
 
-function validateEntry(text: string): string {
-  if (text.trim().length === 0) failGate('entry must not be empty or only whitespace');
-  const chars = [...text].length;
-  if (chars < 1 || chars > MAX_CHARS) failGate(`entry must be 1-${MAX_CHARS} characters, got ${chars}`);
-  if (text !== text.trimEnd()) failGate('entry must not end with trailing whitespace');
-  return text + '\n';
-}
-
-const ENTRY = validateEntry(ENTRY_TEXT);
-
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, 'entry.txt'), ENTRY, 'utf8');
+const target = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+validate(WEEK_LINE);
+mkdirSync(target, { recursive: true });
+writeFileSync(join(target, "entry.txt"), WEEK_LINE, "utf8");
+console.log(`wrote ${[...WEEK_LINE].length}-character entry to ${join(target, "entry.txt")}`);
